@@ -13,12 +13,14 @@
     :rt -100
     :ans 0.3
     :mp 6
-    :lf 0.3
+    :lf 1
     ;---
     ;:act t
     ;:brain-imaging t
     ;:bout t
-    :qs 1.0)
+    :qs 1.0
+    
+    :egs 0.3)
 
 (add-dm    
     (goal1 isa nback status start)
@@ -1227,279 +1229,494 @@
 
 (spp :u 1000)
 
-;----------------- NBACK -----------------
+;----------------- NBACK - sign num <= 3 -----------------
 
 ;nback and rehearsal are split in two parts:
 ;part 1 (*): build list until n speed signs have been passed
 ;part 2: perform n-back task
 
-(p encode-0back*
-        ;building the initial list
+(p encode-first*
     =goal>
-        isa nback
-        num =placeholder
+        isa	nback
+        status	read-nback
+        num	=placeholder
+        ;nbackspeed	=nbackspeed
+        < num 1
+    =visual>
+        isa	speedsign
+        value	=slimit
+    ?imaginal>
+        state	free
+==>
+    !bind! =cid (get-chunk-id)
+    !bind! =num (get-num-sign)
+    !bind! =nr (reset-rehearsal)
+        
+    =goal>
+        isa	nback
+        status	read-nback
+        ;nbackspeed	=slimit
+        num	=num
+    +imaginal>
+        isa	nback-state
+        id	=cid
+        slimit	=slimit
+        ;position 2back
+        nbackspeed =slimit ;perform 0-back until enough signs have been passed
+)
+
+(p encode-second*
+    =goal>
+        isa	nback
+        status	read-nback
+        ;nbackspeed 	=nbackspeed
+        num	=placeholder
         < num 2
     =visual>
-        isa speedsign
-        value =slimit
-    ?retrieval>
-        buffer empty
+        isa	speedsign
+        value	=slimit
+    =imaginal>
+        isa	nback-state
+        id	=id0
+        nbackspeed	=nbackspeed
+        
 ==>
     !bind! =cid (get-chunk-id)
     !bind! =num (get-num-sign)
     !bind! =nr (reset-rehearsal)
+        
     =goal>
-        isa nback
-        status notice
-        target	 =slimit
-        ;nr =nr
-        num =num
-        rehearsal t
-    =imaginal>
-        isa nback-state
-        id =cid
-        slimit =slimit
-    -imaginal>
+        isa	nback
+        status	read-nback
+        ;nbackspeed 	=slimit
+        1back	=id0
+        num	=num
     +imaginal>
-        isa nback-state
-        ;1back =cid
-        nbackspeed =slimit ;perform 0-back until enough signs have been passed
-        position  0back
+        isa	nback-state
+        id	=cid
+        slimit	=slimit
+        ;position 1back
+        nbackspeed =slimit ;perform 0-back until enough signs have been passed)
 )
 
-(p encode-1back*
-        ;building the initial list
+(p encode-third*
     =goal>
-        isa nback
-        num =placeholder
-        < num 2
+        isa	nback
+        status	read-nback
+        ;nbackspeed 	=nbackspeed
+        1back	=id1
+        num	=placeholder
+        < num 3
     =visual>
-        isa speedsign
-        value =slimit
-    ?retrieval>
-        buffer empty
+        isa	speedsign
+        value	=slimit
+        ; ?retrieval>
+        ;state	free
+    =imaginal>
+        isa	nback-state
+        id	=id0
+        nbackspeed	=nbackspeed
 ==>
     !bind! =cid (get-chunk-id)
     !bind! =num (get-num-sign)
     !bind! =nr (reset-rehearsal)
+        
     =goal>
-        isa nback
-        status notice
-        1back	 =slimit
-        ;nr =nr
-        num =num
-        rehearsal t
-    =imaginal>
-        isa nback-state
-        id =cid
-        slimit =slimit
-    -imaginal>
+        isa	nback
+        status	set-nback
+        ;nbackspeed 	=nbackspeed
+        2back  =id1
+        1back  =id0
+        num	=num     
+        ; +retrieval>
+        ;isa nback-state
+        ;position 2back
     +imaginal>
-        isa nback-state
-        ;1back =cid
-        nbackspeed =slimit ;perform 0-back until enough signs have been passed
-        position  0back
+        isa	nback-state
+        id	=cid
+        slimit	=slimit
+        nbackspeed	=nbackspeed
 )
 
-(p nback-memorise-sign
+(p retrieve-nbackspeed*
     =goal>
-        isa nback
-        status read-nback
-        >= num 2
-    =visual>
-        isa speedsign
-        value =slimit
+        isa	nback
+        status	set-nback
+        ;nbackspeed 	=nbackspeed
+        2back  =id2
+        1back  =id1
     =imaginal>
-        isa nback-state
-        1back =1back
+        isa	nback-state
+        id	=id0
+    ?retrieval>
+        state	free
+==>
+    =goal>
+        isa	nback
+        status	set-nback
+        ; nbackspeed 	=nbackspeed
+        2back  =id2
+        1back  =id1
+        0back	=id0
+    +retrieval>
+        isa	nback-state
+        id	=id2
+    =imaginal>
+)
+
+(p set-nbackspeed*
+    =goal>
+        isa	nback
+        status	set-nback
+    =retrieval>
+        isa	nback-state
+        slimit	=slimit
+==>
+    =goal>
+        isa	nback
+        status	build-list
+        ;nbackspeed	=slimit
+    =imaginal>
+        nbackspeed	=slimit 
+)
+
+(p build-list*
+    =goal>
+        isa	nback
+        status	build-list
+        2back  =id2
+        1back  =id1
+        0back	=id0
+    =imaginal>
+        nbackspeed	=nbackspeed
 ==>
     !bind! =cid (get-chunk-id)
-    !bind! =nr (reset-rehearsal)
-    !bind! =num (get-num-sign)
     =goal>
-        status remember1
-        nr =nr
-        num =num
-    =imaginal>
-        id =cid
-        slimit =slimit
-    +retrieval>
-        isa nback-state
-        id =1back
-)
-
-(p nback-remember-sign-1back
-    =goal>
-        isa nback
-        status remember1
-    =retrieval>
-        isa nback-state
-        1back =1back
-==>
-    =goal>
-        status remember2
-    +retrieval>
-        isa nback-state
-        id =1back
-)
-
-(p nback-remember-sign-2back
-    =goal>
-        isa nback
-        status remember2
-    =retrieval>
-        isa nback-state
-        slimit =nbackspeed
-    =imaginal>
-        id =1back
-==>
-    =goal>
-        status notice
-        rehearsal t
-    -imaginal>
+        isa	nback
+        ;        status	build-list
+        status	rehearse-1
+        list	=cid
+        position first
+        ;0back	nil
+        ;1back	nil
+        ; 2back	nil
+        ;-imaginal>
     +imaginal>
-        isa nback-state
-        1back =1back
-        nbackspeed =nbackspeed
-)
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+        list-id	=cid
+        nbackspeed	=nbackspeed
+)    
 
-(p nback-retrieval-failure
-    =goal>
-        isa nback
-        - status notice
-        - status read-nback
-    ?retrieval>
-        state error
-==>
-    =goal>
-        status notice
-        rehearsal f
-)
+    ;(p store-list*
+    ;=goal>
+    ;isa	nback
+    ;status	build-list
+    ;0back	nil
+    ;1back	nil
+    ;2back	nil
+    ;=imaginal>
+    ;isa	nback-list
+    ;nbackspeed	=nbackspeed
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;state	recall
+    ;+imaginal>
+    ;isa	nback-state
+    ;nbackspeed	=nbackspeed
+    ;)
+;-------------------------------------- nback - general ----------------------------------------
 
-;----------------- REHEARSAL* -----------------
-
-(p nback-rehearse-sign0*
+(p encode-new-sign
     =goal>
-        isa nback
-        status rehearse0
-        <= num 1
-    =retrieval>
-        isa nback-state
-        1back =1back
-    ?visual-location>
-        - state error
-        - buffer requested
-        buffer empty
-==>
-    =goal>
-        status notice
-    =retrieval>
-    -retrieval>
-)
-
-(p nback-rehearse-sign1*
-    =goal>
-        isa nback
-        status rehearse1
-        <= num 2
-    =retrieval>
-        isa nback-state
-        1back =1back
-    ?visual-location>
-        - state error
-        - buffer requested
-        buffer empty
-==>
-    =goal>
-        status notice
-    =retrieval>
-    -retrieval>
-)
-
-;----------------- REHEARSAL -----------------
-
-(p nback-start-rehearsal
-    =goal>
-        isa nback
-        status notice
-        rehearsal t
-        < nr 3
-        >= num 1
-    =imaginal>
-        isa nback-state
-        1back =1back
-    ?visual-location>
-        - state error
-        - buffer requested
-        buffer empty
-==>
-    !bind! =nr (get-num-rehearsal)
-    =goal>
-        status rehearse0
-        nr =nr
-    =imaginal>
-    +retrieval>
-        isa nback-state
-        id =1back
-)
-
-(p nback-rehearse-sign0
-    =goal>
-        isa nback
-        status rehearse0
-        > num 1
-    =retrieval>
-        isa nback-state
-        1back =1back
-    ?visual-location>
-        - state error
-        - buffer requested
-        buffer empty
-==>
-    =goal>
-        status rehearse1
-    +retrieval>
-        isa nback-state
-        id =1back    
-)
-
-(p nback-rehearse-sign1
-    =goal>
-        isa nback
-        status rehearse1
-        > num 2
-    =retrieval>
-        isa nback-state
-        1back =1back
-    ?visual-location>
-        - state error
-        - buffer requested
-        buffer empty
-==>
-    =goal>
-        status rehearse2
-    +retrieval>
-        isa nback-state
-        id =1back
-)
-
-(p nback-rehearse-sign2
-    =goal>
-        isa nback
-        status rehearse2
+        isa	nback
+        status	read-nback
+        num	=placeholder
         >= num 3
-    =retrieval>
-        isa nback-state
-        1back =1back
-    ?visual-location>
-        - state error
-        - buffer requested
-        buffer empty
+    =visual>
+        isa	speedsign
+        value	=slimit
+        ;?imaginal>
+        ;state	free
+    =imaginal>
+        nbackspeed	=nbackspeed
+==>
+    !bind! =cid (get-chunk-id)
+    !bind! =num (get-num-sign)
+    !bind! =nr (reset-rehearsal)
+        
+    =goal>
+        isa	nback
+        status	retrieve-list
+        num	=num
+        0back	=cid
+        1back	nil
+        2back	nil
+        position first
+    +imaginal>
+        isa	nback-state
+        id	=cid
+        slimit	=slimit
+        position 0back
+        nbackspeed	=nbackspeed
+)
+
+(p retrieve-list
+    =goal>
+        isa	nback
+        status	retrieve-list
+        list	=lid
+        position first
+        0back	=id0
+        1back	nil
+        2back nil
+    ?retrieval>
+        state	free
 ==>
     =goal>
-        status notice
+        isa	nback
+        status	update
+        list	=lid
+        position first
+        0back	=id0
+    +retrieval>
+        isa	nback-list
+        list-id	=lid
+)
+
+
+(p update-list
+    =goal>
+        isa	nback
+        status	update
+        num 	=num
+        list	=lid
+        position first
+        0back	=id0
+        1back	nil
+        2back	nil
     =retrieval>
-    -retrieval>
+        isa	nback-list
+        ;id	=lid
+        0back	=id1
+        1back =id2
+==>
+    !bind! =cid (get-chunk-id)
+    =goal>
+        isa	nback
+        status	update
+        num 	=num
+        position first
+        0back	=id0
+        1back	=id1
+        2back =id2
+    +retrieval>
+        isa	nback-state
+        id	     =id2
+)
+
+(p set-nbackspeed
+    =goal>
+        isa	nback
+        status	update
+        0back	=id0
+        1back	=id1
+        2back =id2
+    =retrieval>
+        isa	nback-state
+        slimit	=slimit
+==>
+    !bind! =cid (get-chunk-id)
+    =goal>
+        isa	nback
+        status	rehearse-1
+        list	=cid
+        ;nbackspeed	=slimit
+    +imaginal>
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+        list-id	=cid        
+        nbackspeed	=slimit 
+)
+
+
+
+
+;--------------------------------------------------------------------------
+
+    ;(p recall-list-1
+    ;=goal>
+    ;isa	nback
+    ;status	recall
+    ;position first
+    ;list	=lid
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	recall
+    ;+retrieval>
+    ;isa	nback-list
+    ;id	=lid
+    ;)
+
+(p rehearse-0back
+    =goal>
+        isa	nback
+        status	rehearse-1
+        position first
+    =imaginal>
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+==>
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position first
+    =imaginal>
+    +retrieval>
+        isa	nback-state
+        id	=id0
+        
+)
+
+(p update-0back
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position first
+    =retrieval>
+        isa	nback-state
+        id	=id
+==>
+    =goal>
+        isa	nback
+        status	rehearse-1
+        0back	=id
+        position second
+)
+
+(p rehearse-1back
+    =goal>
+        isa	nback
+        status	rehearse-1
+        position second
+    =imaginal>
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+==>
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position second   
+    =imaginal>
+    +retrieval>
+        isa	nback-state
+        id	=id1
+        
+)
+
+(p update-1back
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position second
+    =retrieval>
+        isa	nback-state
+        id	=id
+==>
+    =goal>
+        isa	nback
+        status	rehearse-1
+        1back	=id
+        position third
+)
+
+(p rehearse-2back
+    =goal>
+        isa	nback
+        status	rehearse-1
+        position third
+    =imaginal>
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+==>
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position third 
+    =imaginal>
+    +retrieval>
+        isa	nback-state
+        id	=id2
+        
+)
+
+(p update-2back
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position third
+    =retrieval>
+        isa	nback-state
+        id	=id
+==>
+    =goal>
+        isa	nback
+        status	new-list
+        2back	=id
+        position first
+)
+
+(p create-new-list
+    =goal>
+        isa	nback
+        status	new-list
+        0back	=id0
+        1back	=id1
+        2back	=id2     
+    =imaginal>
+        nbackspeed	=nbackspeed
+==>
+    !bind! =cid (get-chunk-id)
+    =goal>
+        isa	nback
+        status	rehearse-1
+        position first
+    +imaginal>
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+        list-id	=cid        
+        nbackspeed	=nbackspeed
+)         
+
+(p pause-rehearsal
+    =goal>
+        isa	nback
+        status	rehearse-1
+        position first
+    =imaginal>
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+==>
+    =goal>
+    =imaginal>
 )
 
 (p nback-interrupt-rehearsing-notice-sign
@@ -1520,18 +1737,506 @@
         screen-pos =visual-location
 )
 
-(set-similarities
+(spp encode-first* :u 10)
+(spp encode-second* :u 5)
+(spp encode-third* :u 1)
+(spp rehearse-0back :u 0.6)
+(spp pause-rehearsal :u 1)
+
+    ;(set-similarities
     
-    (20 20 0) (20 40 -0.1) (20 60 -0.2) (20 80 -0.4) (20 100 -0.8) 
-    (40 20 -0.1) (40 40 0) (40 60 -0.1) (40 80 -0.2) (40 100 -0.4) (40 120 -0.8) 
-    (60 20 -0.2) (60 40 -0.1) (60 60 0) (60 80 -0.1) (60 100 -0.2) (60 120 -0.4) (60 140 -0.8)
-    (80 20 -0.4) (80 40 -0.2) (80 60 -0.1) (80 80 0) (80 100 -0.1) (80 120 -0.2) (80 140 -0.4) (80 160 -0.8)
-    (100 20 -0.8) (100 40 -0.4) (100 60 -0.2) (100 80 -0.1) (100 100 0) (100 120 -0.1) (100 140 -0.2) (100 160 -0.4) (100 180 -0.8)
-    (120 40 -0.8) (120 60 -0.4) (120 80 -0.2) (120 100 -0.1) (120 120 0) (120 140 -0.1) (120 160 -0.2) (120 180 -0.4) 
-    (140 60 -0.8) (140 80 -0.4) (140 100 -0.2) (140 120 -0.1) (140 140 0) (140 160 -0.1) (140 180 -0.2)
-    (160 80 -0.8) (160 100 -0.4) (160 120 -0.2) (160 140 -0.1) (160 160 0) (160 180 -0.1)
-    (180 100 -0.8) (180 120 -0.4) (180 140 -0.2) (180 160 -0.1) (180 180 0) 
-)
+    ;   (20 20 0) (20 40 -0.1) (20 60 -0.2) (20 80 -0.4) (20 100 -0.8) 
+    ;(40 20 -0.1) (40 40 0) (40 60 -0.1) (40 80 -0.2) (40 100 -0.4) (40 120 -0.8) 
+    ;(60 20 -0.2) (60 40 -0.1) (60 60 0) (60 80 -0.1) (60 100 -0.2) (60 120 -0.4) (60 140 -0.8)
+    ;(80 20 -0.4) (80 40 -0.2) (80 60 -0.1) (80 80 0) (80 100 -0.1) (80 120 -0.2) (80 140 -0.4) (80 160 -0.8)
+    ;(100 20 -0.8) (100 40 -0.4) (100 60 -0.2) (100 80 -0.1) (100 100 0) (100 120 -0.1) (100 140 -0.2) (100 160 -0.4) (100 180 -0.8)
+    ;(120 40 -0.8) (120 60 -0.4) (120 80 -0.2) (120 100 -0.1) (120 120 0) (120 140 -0.1) (120 160 -0.2) (120 180 -0.4) 
+    ;(140 60 -0.8) (140 80 -0.4) (140 100 -0.2) (140 120 -0.1) (140 140 0) (140 160 -0.1) (140 180 -0.2)
+    ;(160 80 -0.8) (160 100 -0.4) (160 120 -0.2) (160 140 -0.1) (160 160 0) (160 180 -0.1)
+    ;(180 100 -0.8) (180 120 -0.4) (180 140 -0.2) (180 160 -0.1) (180 180 0) 
+    ;)
 
 (goal-focus goal1)
 (goal-focus goal2)
+
+
+;------------------------------------------------------------------------------------------------
+
+
+    ;(p build-list-1*
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-1
+    ;num	=num
+    ;0back nil
+    ;1back	nil
+    ;=imaginal>
+    ;isa	nback-state
+    ;position 0back
+    ;id	=id0
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-2
+    ;num	=num
+    ;0back	=id0
+    ;+retrieval>
+    ;isa	nback-state
+    
+    ;position 1back
+    ; =imaginal>
+    ;isa nback-state
+    ;num 	=num  
+    ;)
+
+    ;(p build-list-2*
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-2
+    ;num	=num
+    ;0back	=id0
+    ;=retrieval>
+    ;isa	nback-state
+    ;position 1back
+    ;id	=id1
+    ;slimit	=slimit
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-3
+    ;num	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;=imaginal>
+    ;isa nback-state
+    ;num 	=num 
+    ;)
+
+    ;(p build-list-3*
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-3
+    ;num	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back nil
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-4
+    ;num	=num
+    ;+retrieval>
+    ;isa	nback-state
+    ;position 2back
+    ;=imaginal>
+    ;isa nback-state
+    ;num 	=num 
+    ;)
+
+    ;(p build-list-4*
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-4
+    ;num	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back nil
+    ;=imaginal>
+    ;    isa nback-state
+    ; num 	=num 
+    ;slimit 	=slimit
+    ;nbackspeed =nbackspeed
+    ;=retrieval>
+    ;isa	nback-state
+    ;position 2back
+    ;id	=id2
+    
+    ;  ==>
+    ;!bind! =cid (get-chunk-id)
+    ;!bind! =num (get-num-sign)
+    
+    ;  =goal>
+    ;isa	nback
+    ;status read-nback
+    ;num 	=num
+    ;list 	=cid
+    ;0back	nil
+    ;1back	nil
+    ;2back	nil
+    ;+imaginal>
+    ;isa	nback-list
+    ;id	=cid
+    ;num	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	=id2
+    ; slimit	=slimit
+    ;nbackspeed =nbackspeed
+    ;)
+
+
+
+
+    ;(p update-list-3
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;position second
+    ;target	=target
+    ;0back	=id0   
+    ;1back	=id1
+    ;2back	nil
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;position second
+    ;0back	=id0
+    ;1back	=id1
+    ;target	=target
+    ;+retrieval>
+    ;isa	nback-state
+    ;id	=target
+    ;)
+
+    ;(p update-list-4
+    ;=goal>
+    ;isa	nback
+    ;    status	update
+    ;num 	=num
+    ;position second
+    ;0back	=id0
+    ;1back	nil
+    ;2back	nil
+    ;=retrieval>
+    ;isa	nback-list
+    ;id	=id1
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;position third
+    ;0back	=id0
+    ;1back	=id1
+    ;)
+
+    ;(p update-list-5
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;position third
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	nil
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;position third
+    ;0back	=id0
+    ;1back	=id1
+    ;+retrieval>
+    ;isa	nback-list
+    ;; num	=num
+    ;)
+
+    ;(p update-list-6
+    ;    =goal>
+    ;    isa	nback
+    ;    status	update
+    ;    num 	=num
+    ;    position third
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	nil
+    ;=retrieval>
+    ;    isa	nback-list
+    ;num	=num
+    ;1back	=target
+    ;==>
+    ;=goal>
+    ;    isa	nback
+    ;status	update
+    ;num 	=num
+    ;position 
+    ;0back	=id0
+    ;1back	=id1
+    ;target	=target
+    ;)
+
+    ;(p update-list-7
+    ;=goal>
+    ;    isa	nback
+    ;status	update
+    ;num 	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;target	=target
+    ;2back	nil
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;    isa	nback
+    ;status	update
+    ;num 	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;target	=target
+    ;+retrieval>
+    ;isa	nback-state
+    ;id	=target
+    ;)
+
+    ;(p update-list-8
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	nil
+    ;target	=target
+    ;=retrieval>
+    ;isa	nback-state
+    ;id	=id2
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	=id2
+    ;)
+
+    ;(p update-list-9
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	=id2
+    ;=imaginal>
+    ;isa nback-state
+    ;num 	=num 
+    ;slimit 	=slimit
+    ;nbackspeed =nbackspeed
+    ;==>
+    ;!bind! =cid (get-chunk-id)
+    ;=goal>
+    ;isa	nback
+    ;status	retrieve-list
+    ;num 	=num
+    ;0back	nil
+    ;1back	nil
+    ;2back	nil
+    ;+imaginal>
+    ;isa	nback-list
+    ;id	=cid
+    ;num	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	=id2
+    ;slimit	=slimit
+    ;nbackspeed =nbackspeed
+    ;)
+
+
+    ;(p retrieve-list
+    ;=goal>
+    ;isa	nback
+    ;status	retrieve-list
+    ;num	=num
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	recall
+    ;num	=num
+    ;+retrieval>
+    ;isa	nback-list
+    ;num	=num
+    ;)
+
+;-------------------------------------------------------------------------
+    ;(p recall-from-list-0back
+    ;=goal>
+    ;isa	nback
+    ;status	recall
+    ;num	=num
+    ;position first
+    ;=retrieval>
+    ;isa	nback-list
+    ;0back	=id-0
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-0
+    ;position first
+    ;)
+
+    ;(p rehearse-0back-1
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-0
+    ;position first
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position first
+    ;+retrieval>
+    ;isa	nback-state
+    ;id	=id-0
+    ;)
+
+    ;(p rehearse-0back-2
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position first
+    ;=retrieval>
+    ;isa	nback-state
+    ;==>
+    ;=goal>
+    ;sa	nback
+    ;status	retrieve-list
+    ;position second
+    ;)
+
+;-------------------------------------------------------------------------------
+
+    ;(p recall-from-list-1back
+    ;=goal>
+    ;isa	nback
+    ;status	recall
+    ;num	=num
+    ;position second
+    ;=retrieval>
+    ;isa	nback-list
+    ;1back	=id-1
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-1
+    ;position second
+    ;)
+
+    ;(p rehearse-1back-1
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-1
+    ;position second
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position second
+    ;+retrieval>
+    ;isa	nback-state
+    ;id	=id-1
+    ;)
+
+    ;(p rehearse-1back-2
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position second
+    ;=retrieval>
+    ;    isa	nback-state
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	retrieve-list
+    ;position third
+    ;)
+
+;--------------------------------------------------------------------------------------------
+
+
+    ;(p recall-from-list-2back
+    ;=goal>
+    ;isa	nback
+    ;status	recall
+    ;num	=num
+    ;position third
+    ;=retrieval>
+    ;isa	nback-list
+    ;2back	=id-2
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-2
+    ;position third
+    ;)
+
+    ;(p rehearse-2back-1
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-2
+    ;position third
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position third
+    ;+retrieval>
+    ;isa	nback-state
+    ;id	=id-2
+    ;)
+
+    ;(p rehearse-2back-2
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position third
+    ;=retrieval>
+    ;isa	nback-state
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	retrieve-list
+    ;position first
+    ;)
+
+

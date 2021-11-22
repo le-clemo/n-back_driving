@@ -144,14 +144,24 @@ public class Driving extends actr.task.Task {
 
 	public void update(double time) {
 		Env env = simulation.env;
-		// if (time <= endTime) {
-		if (env.road.block < simulation.scenario.blocks) {
-			env.time = time - startTime;
-			updateVisuals();
-			simulation.update();
-			env.simcar.driver.update(getModel());
-			if (env.simcar.fracIndex > Env.scenario.block_length * env.road.block)
-				env.road.block++;
+		if (time <= endTime) {
+			if (env.road.block < simulation.scenario.blocks) {
+				env.time = time - startTime;
+				updateVisuals();
+				simulation.update();
+				env.simcar.driver.update(getModel());
+				if (env.simcar.fracIndex > Env.scenario.block_length * env.road.block)
+					env.road.block++;
+			} else {
+				String filename = "_behavior_";
+
+				if (simulation.model.behaviorOut) {
+					List<String> output = output(simulation.samples);
+					simulation.model.print(output, filename, simulation.model.subj);
+				}
+				// simulation.model.print(simulation.samples, filename, simulation.model.subj);
+				getModel().stop();
+			}
 		} else {
 			String filename = "_behavior_";
 
@@ -159,9 +169,7 @@ public class Driving extends actr.task.Task {
 				List<String> output = output(simulation.samples);
 				simulation.model.print(output, filename, simulation.model.subj);
 			}
-			// simulation.model.print(simulation.samples, filename, simulation.model.subj);
-			getModel().stop();
-		}
+		getModel().stop();}
 	}
 
 	// save to file
@@ -418,13 +426,13 @@ public class Driving extends actr.task.Task {
 			double leftLane = env.road.left(env.simcar.fracIndex, env.simcar.lane).z;
 			double rightLane = env.road.right(env.simcar.fracIndex, env.simcar.lane).z;
 			boolean b = carPosition > leftLane + (safeDistance + carWidth / 2)
-					&& carPosition < rightLane - (safeDistance + carWidth / 2)
-					&& Math.abs(steerAngle) < 0.05;					;
-			if (b == false){
+					&& carPosition < rightLane - (safeDistance + carWidth / 2) && Math.abs(steerAngle) < 0.05;
+			;
+			if (b == false) {
 				switch_to_safe = env.time;
 			}
 			previousSafe = b;
-			b = b && previousSafe ? true: false;
+			b = b && previousSafe ? true : false;
 			return b;
 		} else {
 			return false;
@@ -569,7 +577,7 @@ public class Driving extends actr.task.Task {
 			return cmd.equals("merging") ? b : !b;
 		} else if (cmd.equals("do-reset") || cmd.equals("do-not-reset")) {
 			boolean safe = isCarSafe();
-			boolean b = (safe != true) && (simulation.env.time - lastSafe - Env.sampleTime*2 < 0.05) ? true : false;
+			boolean b = (safe != true) && (simulation.env.time - lastSafe - Env.sampleTime * 2 < 0.05) ? true : false;
 			return cmd.equals("do-reset") ? b : !b;
 		} else if (cmd.equals("tailgate") || cmd.equals("dont-tailgate")) {
 			Env env = simulation.env;
