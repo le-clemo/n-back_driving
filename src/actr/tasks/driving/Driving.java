@@ -38,7 +38,7 @@ public class Driving extends actr.task.Task {
 	final double thwFollow = 1.0;
 	final double thwMax = 5.0;
 
-	double startTime = 0, endTime = 5000;
+	double startTime = 0, endTime = 800;
 	double accelBrake = 0, speed = 0;
 
 	static int minX = 174, maxX = (238 + 24), minY = 94, maxY = (262 + 32);
@@ -588,6 +588,8 @@ public class Driving extends actr.task.Task {
 			return false;
 	}
 
+	int state_chunk_count = 0;
+	int list_chunk_count = 0;
 	public double bind(Iterator<String> it) {
 		try {
 			it.next(); // (
@@ -607,8 +609,21 @@ public class Driving extends actr.task.Task {
 				return simulation.env.simcar.speed;
 			else if (cmd.equals("get-chunk-id")) {
 				// time as unique id for chunks
+
 				double cid = (int) Math.round(simulation.env.time / 10.0) * 10;
+
+
+				//double cid = (int) (simulation.env.time / 10.0) * 10;
 				return cid;
+			} else if (cmd.equals("get-state-id")){
+				state_chunk_count++;
+				double state_id = state_chunk_count;
+				return state_id;
+			} else if (cmd.equals("get-list-id")){
+				list_chunk_count++;
+				double list_id = list_chunk_count;
+				return list_id;
+			
 			} else if (cmd.equals("get-num-sign")) {
 				// number of signs passed
 				sign_count += 1;
