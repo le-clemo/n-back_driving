@@ -38,7 +38,7 @@ public class Driving extends actr.task.Task {
 	final double thwFollow = 1.0;
 	final double thwMax = 5.0;
 
-	double startTime = 0, endTime = 800;
+	double startTime = 0, endTime = 5000;
 	double accelBrake = 0, speed = 0;
 
 	static int minX = 174, maxX = (238 + 24), minY = 94, maxY = (262 + 32);

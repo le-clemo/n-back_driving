@@ -1,0 +1,2705 @@
+(set-task "actr.tasks.driving.Driving")
+
+(sgp
+    :iu 10
+    :bll 0.5
+    :digit-detect-delay .050
+    :digit-recode-delay .250
+    :visual-onset-span 500.0
+    :visual-finst-span 3.0
+    :emma t
+    :v t
+    ;---
+    :rt -100
+    :ans 0.3
+    :mp 6
+    :lf 1
+    ;---
+    ;:act t
+    ;:brain-imaging t
+    ;:bout t
+    :qs 1.0
+    
+    ; :egs 0.3    
+)
+
+
+(add-dm    
+    (goal1 isa nback status start)
+    (goal2 isa drive follow far sl 2)
+)
+(set-all-base-levels 10000)
+
+(p start
+        ;;create an empty imaginal chunk
+    =goal>
+        isa nback
+        status start
+    ?imaginal>
+        state free
+==>
+    =goal>
+        status notice
+        num 0
+        nr 0
+        rehearsal f
+    +imaginal>
+        isa nback-state
+        nbackspeed 60
+        1back 0
+    +temporal>
+        isa time
+        ticks clear
+        ;-visual-location>
+)
+
+;----------------- DRIVING -----------------
+
+(p drive*attend-near
+    =goal>
+        isa drive
+        na nil
+        - follow undecided
+        
+    ?visual-location> 
+        ;state free
+        buffer empty
+        - buffer requested
+        
+    ?visual>
+        state free
+        buffer empty
+==>
+    =goal>
+        isa drive
+        safe nil
+    +visual-location>
+        isa visual-location
+        kind near
+)
+
+(p drive*eval-safety-safe
+    =goal>
+        isa drive
+        safe nil
+        - follow undecided
+        ;- na nil
+        ;- na2 nil
+    =visual-location>
+        isa visual-location
+        kind near
+        screen-x =nx
+        screen-y =ny
+        distance =nd
+    ?visual>
+        state free
+        buffer empty
+    !eval! (safe-zone)
+    =imaginal>
+        nbackspeed =nbackspeed
+==>
+    !eval! (keep-limit =nbackspeed)
+    =goal>
+        isa drive
+        safe t
+        ;-visual-location>
+    =imaginal>
+)
+
+(p drive*eval-safety-unsafe*
+    =goal>
+        isa drive
+        - follow undecided
+    =visual-location>
+        isa visual-location
+        kind near
+        screen-x =nx
+        screen-y =ny
+        distance =nd
+    ?visual>
+        state free
+        buffer empty
+    !eval! (not-safe-zone)
+    !eval! (do-reset)
+==>
+    =goal>
+        isa control
+        safe f
+        na nil
+        fa nil
+        na2 nil
+        fa2 nil
+        fkind2 nil
+        time2 nil    
+    =visual-location>
+)
+
+(p drive*eval-safety-unsafe
+    =goal>
+        isa drive
+        - follow undecided
+    =visual-location>
+        isa visual-location
+        kind near
+        screen-x =nx
+        screen-y =ny
+        distance =nd
+    ?visual>
+        state free
+        buffer empty
+    !eval! (not-safe-zone)
+    !eval! (do-not-reset)
+==>
+    =goal>
+        isa control
+        safe f
+    =visual-location>
+)
+
+(p drive*process-near-attend-far
+    =goal>
+        isa control
+        na nil
+        follow far
+    =visual-location>
+        isa visual-location
+        kind near
+        screen-x =nx
+        screen-y =ny
+        distance =nd
+    ?visual>
+        state free
+        buffer empty
+==>
+    !bind! =na (image->angle =nx =nd)
+    =goal>
+        isa control
+        na =na
+    +visual-location>
+        isa visual-location
+        kind far
+)
+
+(p drive*process-near-attend-car
+    =goal>
+        isa control
+        na nil
+        follow car
+        safe f
+    =visual-location>
+        isa visual-location
+        kind near
+        screen-x =nx
+        screen-y =ny
+        distance =nd
+    ?visual>
+        state free
+        buffer empty
+==>
+    !bind! =na (image->angle =nx =nd)
+    =goal>
+        isa control
+        na =na
+    +visual-location>
+        isa visual-location
+        kind car
+)
+
+(p drive*process-far
+    =goal>
+        isa control
+        na =na
+        fa nil
+        na2    =na2
+        fa2    =fa2
+        fkind2 =fkind
+        fthw2  =fthw2
+        time2  =time2
+    =visual-location>
+        isa visual-location
+        kind far 
+        kind =fkind
+        screen-x =fx
+        distance =fd
+    ?visual>
+        state free
+        buffer empty
+    =imaginal>
+        nbackspeed =nbackspeed
+==>
+    !bind! =fa (image->angle =fx =fd)
+    !bind! =time (mp-time)
+    !bind! =dna (- =na =na2)
+    !bind! =dfa (- =fa =fa2)
+    !bind! =dt (- =time =time2)
+    !bind! =vna (my/ =dna =dt)
+    !bind! =vfa (my/ =dfa =dt)
+    !bind! =v (get-velocity)
+    !bind! =fthw (get-thw =fd =v)
+    !bind! =dthw (- =fthw =fthw2)
+    !eval! (do-steer =na =dna =dfa =dt)
+    !eval! (keep-limit =nbackspeed)
+    =goal>
+        fkind =fkind
+        fa =fa
+        fd =fd
+        vna =vna
+        vfa =vfa
+        time =time
+        fthw =fthw
+        dthw =dthw
+        v =v
+        done t
+    =imaginal>
+    +visual>
+        isa move-attention
+        screen-pos =visual-location
+)
+
+(p drive*process-car
+    =goal>
+        isa control
+        na =na
+        fa nil
+        na2    =na2
+        fa2    =fa2
+        fkind2 =fkind
+        fthw2  =fthw2
+        time2  =time2
+    =visual-location>
+        isa visual-location
+        kind car 
+        kind =fkind
+        screen-x =fx
+        distance =fd
+    ?visual>
+        state free
+        buffer empty
+    =imaginal>
+        nbackspeed =nbackspeed
+==>
+    !bind! =fa (image->angle =fx =fd)
+    !bind! =time (mp-time)
+    !bind! =dna (- =na =na2)
+    !bind! =dfa (- =fa =fa2)
+    !bind! =dt (- =time =time2)
+    !bind! =vna (my/ =dna =dt)
+    !bind! =vfa (my/ =dfa =dt)
+    !bind! =v (get-velocity)
+    !bind! =fthw (get-thw =fd =v)
+    !bind! =dthw (- =fthw =fthw2)
+    !eval! (do-steer =na =dna =dfa =dt)
+        ;!eval! (keep-lane =na =dna =dfa =dt)
+    !eval! (keep-limit =nbackspeed)
+    =goal>
+        fkind =fkind
+        fa =fa
+        fd =fd
+        vna =vna
+        vfa =vfa
+        time =time
+        fthw =fthw
+        dthw =dthw
+        v =v
+        done t
+    =imaginal>
+    +visual>
+        isa move-attention
+        screen-pos =visual-location
+)
+
+(p drive*process-without-old
+    =goal>
+        isa control
+        na =na
+        fa nil
+    =visual-location>
+        isa visual-location
+        kind =fkind
+        screen-x =fx
+        distance =fd
+    ?visual>
+        state free
+        buffer empty
+==>
+    !bind! =fa (image->angle =fx =fd)
+    !bind! =v (get-velocity)
+    !bind! =fthw (get-thw =fd =v)
+    !bind! =time (mp-time)
+    =goal>
+        isa drive
+        na nil
+        fa nil
+        na2 =na
+        fa2 =fa
+        fd2 =fd
+        fkind2 =fkind
+        fthw2 =fthw
+        time2 =time
+    +visual-location>
+        isa visual-location
+        kind near
+)
+(spp drive*process-without-old :u 7)
+
+(p drive*loop-stable-far
+    =goal>
+        isa control
+        na =na
+        fa =fa
+        vna =vna
+        vfa =vfa
+        fd =fd
+        fkind =fkind
+        time =time
+    =visual>
+        isa far
+    !eval! (is-car-stable =na =vna =vfa)
+==>
+    =goal>
+        isa drive
+        na nil
+        fa nil
+        na2 =na
+        fa2 =fa
+        fd2 =fd
+        fkind2 =fkind
+        time2 =time
+    +visual-location>
+        isa visual-location
+        kind car
+        >= screen-x 0 ;annoying...
+)
+
+(p drive*loop-monitor-car-left*
+        ;first time
+    =goal>
+        isa drive
+        follow far
+        sl =sl
+        na nil
+        fa nil
+        na2 =na
+        fa2 =fa
+        ;fd2 =fd
+        fkind2 =fkind
+        time2 =time
+        cthw nil
+        cthw2 nil
+    =visual-location>
+        isa visual-location
+        kind car
+        distance =fd
+        >= screen-x 0
+        screen-x =fx
+    !eval! (autocar-left =sl =fd =fx)
+==>
+    !bind! =v (get-velocity)
+    !bind! =cthw (get-thw =fd =v)
+    !bind! =dcthw (- =cthw =cthw2)
+    =goal>
+        isa drive
+        ctwh2 =cthw
+        cthw =cthw
+        dcthw =dcthw
+        fd =fd
+)
+
+(p drive*loop-monitor-car-left
+    =goal>
+        isa drive
+        follow far
+        sl =sl
+        na nil
+        fa nil
+        cthw =cthw2
+        dcthw =dcthw2
+    =visual-location>
+        isa visual-location
+        kind car
+        distance =fd
+        >= screen-x 0
+        screen-x =fx
+    !eval! (autocar-left =sl =fd =fx)
+    !eval! (car-not-too-close =fd =cthw2 =dcthw2)   
+==>
+    !bind! =v (get-velocity)
+    !bind! =cthw (get-thw =fd =v)
+    !bind! =dcthw (- =cthw =cthw2)
+    =goal>
+        isa drive
+        ctwh2 =cthw2
+        cthw =cthw
+        dcthw =dcthw
+        fd =fd
+    -visual-location>
+)
+
+(p drive*loop-monitor-car-right
+    =goal>
+        isa drive
+        follow far
+        sl =sl
+        na nil
+        fa nil
+    =visual-location>
+        isa visual-location
+        kind car
+        distance =fd
+        >= screen-x 0
+        screen-x =fx
+    !eval! (autocar-not-ahead =sl =fd =fx)
+    !eval! (autocar-right =sl =fd =fx)
+==>
+    =goal>
+        isa drive
+)
+
+(p drive*notice-construction
+    =goal>
+        isa drive
+        ;- construction t
+    =visual-location>
+        isa visual-location
+        kind construction
+        :attended nil
+    ?visual>
+        state free
+        buffer empty
+==>
+    =goal>
+        isa drive
+    +visual>
+        isa move-attention
+        screen-pos =visual-location
+    =visual-location>
+)
+
+(p drive*process-construction-start
+    =goal>
+        isa drive
+    =visual>
+        isa construction
+        value start
+==>
+    =goal>
+        isa drive
+        construction t
+    -visual-location>
+)
+
+(p drive*process-construction-end
+    =goal>
+        isa drive
+    =visual>
+        isa construction
+        value end
+==>
+    =goal>
+        isa drive
+        construction nil
+    -visual-location>
+)
+
+(p drive*loop-stable-car
+    =goal>
+        isa control
+        na =na
+        fa =fa
+        vna =vna
+        vfa =vfa
+        fd =fd
+        fkind =fkind
+        time =time
+        fthw =fthw
+        dthw =dthw
+        follow car
+        sl =sl
+    =visual>
+        isa car
+        value =cl
+    !eval! (is-car-stable =na =vna =vfa)
+    !eval! (car-not-too-close =fd =fthw =dthw)
+    !eval! (same-lane =sl =cl)
+==>
+    =goal>
+        isa drive
+        na nil
+        fa nil
+        na2 =na
+        fa2 =fa
+        fd2 =fd
+        fkind2 =fkind
+        fthw2 =fthw
+        time2 =time
+)
+
+(p drive*loop-stable-car-change-point
+    =goal>
+        isa control
+        na =na
+        fa =fa
+        vna =vna
+        vfa =vfa
+        fd =fd
+        fkind =fkind
+        time =time
+        fthw =fthw
+        dthw =dthw
+        follow car
+        sl =sl
+    =visual>
+        isa car
+        value =cl
+    !eval! (is-car-stable =na =vna =vfa)
+    !eval! (car-not-too-close =fd =fthw =dthw)
+    !eval! (not-same-lane =sl =cl)
+==>
+    =goal>
+        isa drive
+        na nil
+        fa nil
+        na2 =na
+        fa2 =fa
+        fd2 =fd
+        fkind2 =fkind
+        time2 =time
+        follow far
+)
+
+(p drive*loop-stable-far-change-point
+    =goal>
+        isa drive
+        follow far
+        sl =sl
+    =visual-location>
+        isa visual-location
+        kind car
+        >= screen-x 0
+        screen-x =fx
+        distance =fd
+    !eval! (autocar-ahead =sl =fd =fx) ;peripheral vision
+==>
+    =goal>
+        isa drive
+        follow car
+    +visual-location>
+        isa visual-location
+        kind near
+)
+
+(p drive*init-overtake-attend-left-mirror
+    =goal>
+        isa control
+        follow car
+        na =na
+        fa =fa
+        vna =vna
+        vfa =vfa
+        fd =fd
+        fkind =fkind
+        time =time
+        fd =fd
+        fthw =fthw
+        dthw =dthw
+        sl =sl
+        > sl 1
+    =visual>
+        isa car
+        value =cl
+    !eval! (car-too-close =fd =fthw =dthw)
+    !eval! (dont-tailgate)
+==>
+    =goal>
+        isa overtake
+        na nil
+        fa nil
+        na2 =na
+        fa2 =fa
+        fd2 =fd
+        fkind2 =fkind
+        time2 =time
+    +visual-location>
+        isa visual-location
+        kind left-mirror
+)
+
+(p drive*avoid-construction
+    =goal>
+        isa drive
+        sl 1
+        construction =t ; needs to exist
+        construction t
+    ?visual-location>
+        state free
+        buffer empty
+==>
+    =goal>
+        isa drive
+    +visual-location>
+        isa visual-location>
+        kind right-mirror
+)
+
+(p drive*tailgate
+    =goal>
+        isa control
+        follow car
+        na =na
+        fa =fa
+        vna =vna
+        vfa =vfa
+        fd =fd
+        fkind =fkind
+        time =time
+        fd =fd
+        fthw =fthw
+        dthw =dthw
+        sl =sl
+        sl 2
+    =visual>
+        isa car
+        value =cl
+    !eval! (car-too-close =fd =fthw =dthw)
+    !eval! (tailgate)
+==>
+    =goal>
+        isa drive
+        follow far
+        na nil
+        fa nil
+        na2 =na
+        fa2 =fa
+        fd2 =fd
+        fkind2 =fkind
+        time2 =time
+    +visual-location>
+        isa visual-location
+        kind near
+    +temporal>
+        isa time
+        ticks clear
+)
+
+(p drive*init-overtake-attend-left-mirror-far
+    =goal>
+        isa drive
+        follow far
+        sl =sl
+        > sl 1
+        na nil
+        fa nil
+        na2 =na
+        fa2 =fa
+        ;fd2 =fd
+        fkind2 =fkind
+        time2 =time
+        cthw =cthw2
+        dcthw =dcthw2
+    =visual-location>
+        isa visual-location
+        kind car
+        distance =fd
+        >= screen-x 0
+        screen-x =fx
+    !eval! (autocar-left =sl =fd =fx)
+    !eval! (car-too-close =fd =cthw2 =dcthw2)   
+==>
+    =goal>
+        isa overtake
+    +visual-location>
+        isa visual-location
+        kind left-mirror
+)
+
+(p drive*loop-process-left-mirror
+    =goal>
+        isa overtake
+    ?visual>
+        buffer empty
+        - state requested
+    =visual-location>
+        isa visual-location
+        kind left-mirror
+==>
+    =goal>
+        isa overtake
+    +visual>
+        isa move-attention
+        screen-pos =visual-location
+    =visual-location> ;sign won't be noticed
+)
+
+(p drive*loop-process-right-mirror
+    =goal>
+        isa drive
+    ?visual>
+        buffer empty
+        - state requested
+    =visual-location>
+        isa visual-location
+        kind right-mirror
+    ?visual>
+        buffer empty
+        state free
+==>
+    =goal>
+        isa overtake
+        
+    +visual>
+        isa move-attention
+        screen-pos =visual-location
+    =visual-location> ;sign won't be noticed
+)
+
+
+(p drive*slow-down
+    =goal>
+        isa overtake
+    =visual>
+        isa =isa
+        value =value
+    !eval! (overtaking-not-safe =value)
+    !eval! (merging)
+==>
+    !eval! (keep-limit 60)
+    =goal>
+        isa drive
+        na nil
+    +visual-location>
+        isa visual-location
+        kind right-mirror
+)
+
+(p drive*abort-changing-lane
+    =goal>
+        isa overtake
+    =visual>
+        isa =isa
+        value =value
+    !eval! (overtaking-not-safe =value)
+    !eval! (not-merging)
+==>
+    =goal>
+        isa drive
+        na nil
+    +temporal>
+        isa time
+        time clear
+    +visual-location>
+        isa visual-location
+        kind near
+)
+
+(p drive*attend-left-lane
+    =goal>
+        isa overtake
+    =visual>
+        isa left-mirror
+        value clear
+==>
+    =goal>
+        isa overtake
+    +visual-location>
+        isa visual-location
+        kind left-lane
+)
+
+(p drive*attend-right-lane
+    =goal>
+        isa overtake
+    =visual>
+        isa right-mirror
+        value clear
+==>
+    =goal>
+        isa overtake
+    +visual-location>
+        isa visual-location
+        kind right-lane        
+)
+
+(p drive*process-right-lane
+    =goal>
+        isa overtake
+    ?visual>
+        buffer empty
+        - state requested
+    =visual-location>
+        isa visual-location
+        kind right-lane
+==>
+    =goal>
+        isa overtake
+    +visual>
+        isa move-attention
+        screen-pos =visual-location
+    =visual-location>
+)
+
+(p drive*process-left-lane
+    =goal>
+        isa overtake
+    ?visual>
+        buffer empty
+        - state requested
+    =visual-location>
+        isa visual-location
+        kind left-lane
+==>
+    =goal>
+        isa overtake
+    +visual>
+        isa move-attention
+        screen-pos =visual-location
+    =visual-location>
+)
+
+(p drive*loop-turn-left
+    =goal>
+        isa overtake
+        sl =sl
+        > sl 1
+    =visual>
+        isa left-lane
+        value clear
+==>
+    !eval! (change-lane-left)
+    !bind! =sl (simcar-lane)
+    =goal>
+        isa drive
+        follow undecided
+        sl =sl
+        na nil 
+        na2 nil
+        fa nil
+        fa2 nil
+    +temporal>
+        isa time
+        ticks clear
+    +visual-location>
+        isa visual-location
+        kind car
+)
+
+(p drive*loop-turn-right
+    =goal>
+        isa overtake
+        sl =sl
+        < sl 3
+    =visual>
+        isa right-lane
+        value clear
+==>
+    !eval! (change-lane-right)
+    !bind! =sl (simcar-lane)
+    =goal>
+        isa drive
+        sl =sl
+        na nil 
+        na2 nil
+        fa nil
+        fa2 nil
+        cthw nil
+        cthw2 nil
+        dthw nil
+        follow undecided
+        ;+temporal>
+        ;isa time
+        ;ticks clear
+    +visual-location>
+        isa visual-location
+        kind car
+        >= screen-x 320 ;right-side of environment
+)
+
+(p drive*merge-at-construction
+    =goal>
+        isa overtake
+        sl 1
+        construction t
+    =visual>
+        isa right-lane
+        value clear
+    !eval! (merging)
+==>
+    !eval! (change-lane-right)
+    !bind! =sl (simcar-lane)
+    =goal>
+        isa drive
+        sl =sl
+        cthw nil
+        cthw2 nil
+        dthw nil
+        follow undecided
+    +visual-location>
+        isa visual-location
+        kind car
+        ;>= screen-x 320 ;right-side of environment
+)
+
+(p drive*follow-far
+    =goal>
+        isa drive
+        - follow far
+    ?visual-location>        
+        state error
+==>
+    =goal>
+        isa drive
+        follow far
+        na nil
+        fa nil
+        na2 nil
+        fa2 nil
+        fkind2 nil
+        time2 nil
+    +visual-location>
+        isa visual-location
+        kind near
+)
+
+(p drive*follow-far2
+    =goal>
+        isa drive
+        sl =sl
+        follow undecided
+    =visual>
+        isa car
+        value =cl
+    !eval! (not-same-lane =sl =cl)
+==>
+    =goal>
+        isa drive
+        follow far        
+        na nil
+        fa nil
+        na2 nil
+        fa2 nil
+        fkind2 nil
+        time2 nil
+    +visual-location>
+        isa visual-location
+        kind near
+)
+
+(p drive*follow-far3
+    =goal>
+        isa control
+        - follow far
+    ?visual-location>        
+        state error
+==>
+    =goal>
+        isa drive
+        follow far
+        na nil
+        fa nil
+        na2 nil
+        fa2 nil
+        fkind2 nil
+        time2 nil
+    +visual-location>
+        isa visual-location
+        kind near
+)
+
+(p drive*decide-follow
+    =goal>
+        isa drive
+        follow undecided
+    =visual-location>
+        isa visual-location
+        kind car
+==>
+    !bind! =sl (simcar-lane)
+    =goal>
+        isa drive
+        sl =sl
+    +visual>
+        isa move-attention
+        screen-pos =visual-location
+)
+
+(p drive*follow-car
+    =goal>
+        isa drive
+        sl =sl
+        follow undecided
+    =visual>
+        isa car
+        value =cl
+    !eval! (same-lane =sl =cl)
+==>
+    =goal>
+        isa drive
+        follow car
+        na nil
+        fa nil
+        na2 nil
+        fa2 nil
+        fkind2 nil
+        time2 nil
+    +visual-location>
+        isa visual-location
+        kind near
+)
+
+(p drive*glance-mirror-far
+    =goal>
+        isa drive
+        follow far
+        < sl 3
+    =temporal>
+        isa time
+        > ticks 50
+==>
+    =goal>
+        isa drive
+    +visual-location>
+        isa visual-location
+        kind right-mirror
+    +temporal>
+        isa time
+        ticks clear
+)
+
+(p drive*glance-mirror-car
+    =goal>
+        isa drive
+        follow car
+        < sl 3
+        fthw =fthw
+        >= fthw 4
+        dthw =dthw
+        > dthw 0
+    =temporal>
+        isa time
+        > ticks 50
+==>
+    =goal>
+        isa drive
+    +visual-location>
+        isa visual-location
+        kind right-mirror
+    +temporal>
+        isa time
+        ticks clear
+)
+
+(p drive*loop-not-stable-far
+    =goal>
+        isa control
+        na =na
+        fa =fa
+        vna =vna
+        vfa =vfa
+        fd =fd
+        fkind =fkind
+        time =time
+    =visual>
+        isa far
+    !eval! (is-car-not-stable =na =vna =vfa)
+==>
+    =goal>
+        isa drive
+        na nil
+        fa nil
+        na2 =na
+        fa2 =fa
+        fd2 =fd
+        fkind2 =fkind
+        time2 =time
+)
+
+(p drive*loop-not-stable-car
+    =goal>
+        isa control
+        na =na
+        fa =fa
+        vna =vna
+        vfa =vfa
+        fd =fd
+        fkind =fkind
+        time =time
+        follow car
+    =visual>
+        isa car
+    !eval! (is-car-not-stable =na =vna =vfa)
+==>
+    =goal>
+        isa drive
+        na nil
+        fa nil
+        na2 =na
+        fa2 =fa
+        fd2 =fd
+        fkind2 =fkind
+        time2 =time
+)
+
+(p drive*reset
+    =goal>
+        isa drive
+        - follow undecided
+    ?visual-location>
+        state free
+        buffer empty
+        - buffer requested
+    ?visual>
+        state free
+        buffer empty
+==>
+    =goal>
+        na nil
+        fa nil
+        na2 nil
+        fa2 nil
+        fkind2 nil
+        time2 nil
+        safe nil
+    +visual-location>
+        isa visual-location
+        kind near
+        :attended new
+)
+(spp :u 1)
+
+(p drive*reset2
+    =goal>
+        isa drive
+        follow undecided
+    ?visual-location>
+        state free
+        - buffer requested
+    ?visual>
+        state free
+        buffer empty
+==>
+    =goal>
+        isa drive
+    +visual-location>
+        isa visual-location
+        kind car
+)
+
+;;----------------- Lane-change -----------------
+
+(p drive*notice-car
+    =goal>
+        isa drive
+        follow car
+    ?visual>
+        state free
+        buffer empty
+    =visual-location>
+        isa visual-location
+        kind car
+        :attended new
+==>
+    !bind! =cl (autocar-lane)
+    !bind! =sl (simcar-lane)
+    =goal>
+        isa drive
+        cl =cl
+        sl =sl
+        follow undecided
+    +visual>
+        isa move-attention
+        screen-pos =visual-location
+)
+
+;----------------- NBACK general-----------------
+(p notice-sign
+    =goal>
+        isa nback
+    =visual-location>
+        isa visual-location
+        kind speedsign
+    ?visual>
+        state free
+        buffer empty
+==>
+    =goal>
+        isa nback
+        status read-nback
+    +visual>
+        isa move-attention
+        screen-pos =visual-location
+    -retrieval>
+)
+
+(spp :u 1000)
+
+
+(p retrieval-buffer-intercept
+    =goal>
+        isa nback
+    =visual-location>
+        isa visual-location
+        kind speedsign
+    ?visual>
+        state free
+        buffer empty
+    ?retrieval>
+        state	busy
+==>
+    =goal>
+        isa nback
+    -retrieval>
+)
+
+(spp :u 1000)
+;----------------- NBACK - sign num <= 3 -----------------
+
+;nback and rehearsal are split in two parts:
+;part 1 (*): build list until n speed signs have been passed
+;part 2: perform n-back task
+
+(p encode-first*
+    =goal>
+        isa	nback
+        status	read-nback
+        num	=placeholder
+        ;nbackspeed	=nbackspeed
+        < num 1
+    =visual>
+        isa	speedsign
+        value	=slimit
+    ?imaginal>
+        state	free
+    =temporal>
+        ticks	=time
+==>
+        ; !bind! =cid (get-chunk-id)
+    !bind! =state_id (get-state-id)
+    !bind! =num (get-num-sign)
+        ; !bind! =nr (reset-rehearsal)
+        
+    !output! (New chunk)
+    !output! (speed: =slimit)
+    !output! (id: =state_id)
+    !output! (time:	=time)
+        
+    =goal>
+        isa	nback
+        status	read-nback
+        two	=slimit
+        time2	=time
+        ;nbackspeed	=slimit
+        num	=num
+        
+        true2back	=slimit
+        
+    +imaginal>
+        isa	nback-state
+        id	=state_id
+        slimit	=slimit
+        time	=time
+        position 2 ;for now first three chunks are created with future nback positions 
+        nbackspeed =slimit ;perform 0-back until enough signs have been passed
+)
+
+(p encode-second*
+    =goal>
+        isa	nback
+        status	read-nback
+        ;nbackspeed 	=nbackspeed
+        num	=placeholder
+        < num 2
+    =visual>
+        isa	speedsign
+        value	=slimit
+    =imaginal>
+        isa	nback-state
+        id	=id2
+        nbackspeed	=nbackspeed
+    =temporal>
+        ticks	=time
+==>
+        ;!bind! =cid (get-chunk-id)
+    !bind! =state_id (get-state-id)
+    !bind! =num (get-num-sign)
+        ; !bind! =nr (reset-rehearsal)
+        
+    !output! (New chunk)
+    !output! (speed: =slimit)
+    !output! (id: =state_id)
+    !output! (time:	=time) 
+        
+    =goal>
+        isa	nback
+        status	read-nback
+        ;nbackspeed 	=slimit
+        one	=slimit
+        time1	=time
+        2back	=id2
+        num	=num
+        
+        true1back	=slimit
+        
+    +imaginal>
+        isa	nback-state
+        id	=state_id
+        slimit	=slimit
+        time	=time
+        position 1
+        nbackspeed =slimit ;perform 0-back until enough signs have been passed)
+)
+
+(p encode-third*
+    =goal>
+        isa	nback
+        status	read-nback
+        ;nbackspeed 	=nbackspeed
+        num	=placeholder
+        < num 3
+    =visual>
+        isa	speedsign
+        value	=slimit
+        ; ?retrieval>
+        ;state	free
+    =imaginal>
+        isa	nback-state
+        id	=id1
+        nbackspeed	=nbackspeed
+    =temporal>
+        ticks	=time
+==>
+        ;!bind! =cid (get-chunk-id)
+    !bind! =state_id (get-state-id)
+    !bind! =num (get-num-sign)
+        ;!bind! =nr (reset-rehearsal)
+        
+    !output! (New chunk)
+    !output! (speed: =slimit)
+    !output! (id: =state_id)
+    !output! (time:	=time) 
+        
+    =goal>
+        isa	nback
+        status	retrieve-nback*
+        nbackspeed 	=nbackspeed
+        zero	=slimit
+        time0	=time
+        1back  =id1
+        num	=num
+        
+        true0back	=slimit
+        
+    +imaginal>
+        isa	nback-state
+        id	=state_id
+        slimit	=slimit
+        time	=time
+        position 0
+        nbackspeed	=nbackspeed
+)
+
+    ;(p store-third*
+    ;    =goal>
+    ;        isa	nback
+    ;        status	store
+    ;    =imaginal>
+    ;        id	=id
+    ;        nbackspeed	=nbackspeed
+    ;==>
+    ;    =goal>
+    ;        isa	nback
+    ;        status	retrieve-nback*
+    ;        0back	=id
+    ;    +imaginal>
+    ;        isa	nback-state
+    ;nbackspeed	=nbackspeed
+    ;)
+
+(p retrieve-nbackspeed*
+    =goal>
+        isa	nback
+        status	retrieve-nback*
+        time2	 =time
+        2back	=id2
+    =imaginal>
+        id	=id0
+    ?retrieval>
+        state	free
+==>
+    =goal>
+        isa	nback
+        status	set-nback
+        0back	=id0
+    +retrieval>
+        isa	nback-state
+        id	=id2
+        ;time	=time
+        ;position 2
+    =imaginal>
+)
+
+(p nback-retrieval-failure*
+    =goal>
+        isa nback
+        status	set-nback
+    ?retrieval>
+        state error
+==>
+    =goal>
+        status retrieve-nback*
+)
+
+(p set-nbackspeed*
+    =goal>
+        isa	nback
+        status	set-nback
+    =retrieval>
+        isa	nback-state
+        slimit	=slimit
+==>
+    =goal>
+        isa	nback
+        status	build-list
+    =imaginal>
+        nbackspeed	=slimit 
+)
+
+(p build-list*
+    =goal>
+        isa	nback
+        status	build-list
+        0back	=id0
+        1back  =id1
+        2back  =id2
+        zero	=zero
+        one	=one
+        two	=two
+        time0	=time0
+        time1	=time1
+        time2	=time2
+    =imaginal>
+        nbackspeed	=nbackspeed
+    =temporal>
+        ticks	=time
+==>
+        ; !bind! =cid (get-chunk-id)
+    !bind! =list_id (get-list-id)
+        
+    !output! (New list:)
+    !output! (0back:)
+    !output! (slimit: =zero , id: =id0 , time: =time0) 
+    !output! (1back:)
+    !output! (slimit: =one , id: =id1 , time: =time1) 
+    !output! (2back)        
+    !output! (slimit: =two , id: =id2 , time: =time2) 
+        
+    =goal>
+        isa	nback
+        status	rehearse-1
+        time-list	=time
+        position first
+        list	=list_id
+        
+        id-on-list-0	=id0
+        id-on-list-1	=id1
+        id-on-list-2	=id2
+        
+    =imaginal>
+    +imaginal>
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+        list-id	=list_id
+        time	=time
+        nbackspeed	=nbackspeed
+)    
+
+;-------------------------------------- nback - general ----------------------------------------
+
+(p new-sign-retrieve-list
+    =goal>
+        isa	nback
+        status	read-nback
+        num	=num
+        zero	=zero
+        one	=one
+        time0	=time0
+        time1	=time1
+        list	=lid
+        >= num 3
+        true0back	=t0
+        true1back	=t1
+        true2back	=t2
+        
+    =visual>
+        isa	speedsign
+        value	=slimit
+    ?retrieval>
+        state	free
+==>
+        ;!bind! =cid (get-chunk-id)
+        ;!bind! =list_id (get-list-id)
+    !bind! =num (get-num-sign)
+        ;!bind! =nr (reset-rehearsal)
+        
+    !output! (Asked for list-id: =lid)
+        
+    =goal>
+        isa	nback
+        status	re-encode
+        num	=num
+        list	=lid
+        position first
+        zero	=slimit
+        one	=zero
+        two	=one
+        time1	=time0
+        time2	=time1
+        
+        true0back	=slimit
+        true1back	=t0
+        true2back	=t1
+        
+    +retrieval>
+        isa	nback-list
+        list-id	=lid
+        ;time	=time
+)
+
+(p retrieve-former-1back
+    =goal>
+        isa	nback
+        status	re-encode
+        position first
+        zero	=zero
+        one	=one
+        two	=two
+        time0	=time0
+        time1	=time1
+        time2	=time2
+        
+    =retrieval>
+        isa	nback-list
+        list-id	=lid
+        0back	=id0
+        1back	=id1
+        2back	=id2
+==>
+    !output! (Retrieved list id =lid)
+        ;!output! (0back:)
+        ;!output! (slimit: =zero , id: =id0 , time: =time0) 
+        ;!output! (1back:)
+        ;!output! (slimit: =one , id: =id1 , time: =time1) 
+        ;!output! (2back)        
+        ;!output! (slimit: =two , id: =id2 , time: =time2) 
+        
+    =goal>
+        isa	nback
+        status	update-nback
+        position first
+        0back	=id0
+        1back	=id1
+        2back	=id2
+        
+        id-on-list-0	=id0
+        id-on-list-1	=id1
+        id-on-list-2	=id2
+        
+    +retrieval>
+        isa	nback-state
+        id	=id1
+)
+
+
+(p update-nbackspeed
+    =goal>
+        isa	nback
+        status	update-nback
+        num 	=num
+        two	=two
+        ; list	=lid
+        position first
+        0back	=id0
+        
+        true0back	=t0
+        true1back	=t1
+        true2back	=t2
+        
+    =retrieval>
+        isa	nback-state
+        id	=id
+        slimit	=slimit
+        time	=time2
+    =imaginal>
+        nbackspeed	=nbackspeed
+==>
+    !bind! =state_id (get-state-id)
+        
+    !output! (------------------------------------------------)
+    !output! (2back speed limit: =t2)
+    !output! (Imagined speed limit: =slimit)
+    !output! (------------------------------------------------)
+    !output! (Retrieved chunk:)
+    !output! (speed: =slimit)
+    !output! (id: =id)
+    !output! (time: =time2)
+    !output! (------------------------------------------------)
+    !output! (New chunk)
+    !output! (slimit:	=slimit)
+    !output! (id: =state_id)
+    !output! (time: =time2)
+    !output! (------------------------------------------------)
+        
+    =goal>
+        isa	nback
+        status	update-1back
+        num 	=num
+        position first
+        2back =id
+    =imaginal>
+    +imaginal>
+        isa	nback-state
+        id	=state_id
+        slimit	=slimit
+        position 2
+        time	=time2
+        nbackspeed	=slimit
+    +retrieval>
+        isa	nback-state
+        id	 =id0
+        ;position 0
+        ;time	=time
+)
+
+(p update-former-0back
+    =goal>
+        isa	nback
+        status	update-1back
+        list	=lid
+        position first
+    =retrieval>
+        isa	nback-state
+        slimit	=slimit
+        id	=id
+        time	=time1
+    =imaginal>
+        isa	nback-state
+        id	=id2
+        nbackspeed	=nbackspeed
+==>
+        ;!bind! =cid (get-chunk-id)
+    !bind! =state_id (get-state-id)
+        
+    !output! (Retrieved chunk:)
+    !output! (speed: =slimit)
+    !output! (id: =id)
+    !output! (time: =time1)
+    !output! (-------------------)
+    !output! (New chunk)
+    !output! (slimit:	=slimit)
+    !output! (id: =state_id)
+    !output! (time: =time1)
+        
+    =goal>
+        isa	nback
+        status	encode-new
+        time1	=time1
+        2back	=id2
+        ;nbackspeed	=slimit
+        position second
+        
+        id-on-list-2	=id2
+        
+    =imaginal>
+    +imaginal>
+        isa	nback-state
+        slimit	=slimit
+        id	=state_id
+        time	=time1
+        nbackspeed	=nbackspeed        
+        position	1
+)
+
+(p encode-new-sign
+    =goal>
+        isa	nback
+        status	encode-new
+        position second
+        1back	=id1
+        time1	=time1
+        zero	=zero
+    =imaginal>
+        isa	nback-state
+        id	=id
+        time	=time1
+        nbackspeed	=nbackspeed
+    =temporal>
+        ticks	=time
+==>
+    !bind! =state_id (get-state-id)
+        
+    !output! (New Chunk)
+    !output! (id: =state_id)
+    !output! (speed: =zero)
+    !output! (time: =time)
+        
+    =goal>
+        isa	nback
+        status	update-list
+        1back	=id
+        time0	=time
+        position list
+    =imaginal>
+    +imaginal>
+        isa	nback-state
+        id	=state_id
+        slimit	=zero
+        time	=time
+        position	0
+        nbackspeed	=nbackspeed
+)
+
+
+(p update-list
+    =goal>
+        isa nback
+        status update-list
+        position list
+        1back	=id1
+        2back	=id2
+        zero	=zero
+        one	=one
+        two	=two
+        time0	=time0
+        time1	=time1
+        time2	=time2
+    =imaginal>
+        isa	nback-state
+        id	=id
+        nbackspeed	=nbackspeed
+    =temporal>
+        ticks	=time
+==>
+        
+    !bind! =list_id (get-list-id)
+        
+    !output! (Created list (id: =list_id))
+    !output! (0back)
+    !output! (slimit: =zero , id: =id , time: =time0) 
+    !output! (1back)
+    !output! (slimit: =one , id: =id1 , time: =time1) 
+    !output! (2back)        
+    !output! (slimit: =two , id: =id2 , time: =time2) 
+        
+    =goal>
+        isa	nback
+        status	rehearse-1
+        0back	=id
+        position first
+        list	=list_id
+        
+        id-on-list-0	=id
+        id-on-list-1	=id1
+        id-on-list-2	=id2
+        
+    =imaginal>
+    +imaginal>
+        isa	nback-list
+        list-id	=list_id
+        0back	=id
+        1back	=id1
+        2back	=id2
+        time	=time
+        nbackspeed	=nbackspeed
+)
+
+;--------------------------------------------------------------------------
+(p rehearse-0back
+    =goal>
+        isa	nback
+        status	rehearse-1
+        position first
+        time0	=time
+        zero	=zero
+    =imaginal>
+        isa	nback-list
+        ; list-id	=lid
+        0back	=id0
+        1back	=id1
+        2back	=id2
+    ?retrieval>
+        state	free
+==>
+        ; !output! (Target chunk (0back):)
+        ;!output! (slimit:	=zero)
+        ;    !output! (id: =id0)
+        ;    !output! (time: =time)
+        
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position first
+        ;  list	=lid
+    =imaginal>
+    +retrieval>
+        isa	nback-state
+        id	=id0
+        ;position 	0
+        ;time	=time
+        
+)
+
+(p update-0back
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position first
+        zero	=zero
+        time0	=time0
+    =retrieval>
+        isa	nback-state
+        id	=id
+        slimit	=slimit
+        time	=time
+    =imaginal>
+        0back	=id0
+==>
+        
+    !output! (Retrieved chunk:)
+    !output! (slimit: =slimit)
+    !output! (id: =id)
+    !output! (time: =time)
+    !output! (--------------------------------------)
+    !output! (Target chunk:)
+    !output! (slimit: =zero)
+    !output! (id: =id0)
+    !output! (time:	=time0)
+        
+    =goal>
+        isa	nback
+        status	rehearse-1
+        0back	=id
+        position second
+        zero	=slimit
+    =imaginal>
+)
+
+(p rehearse-1back
+    =goal>
+        isa	nback
+        status	rehearse-1
+        position second
+        time1	=time
+        one	=one
+    =imaginal>
+        isa	nback-list
+        1back	=id1
+    ?retrieval>
+        state	free
+==>
+        ; !output! (Target chunk (1back):)
+        ;    !output! (slimit:	=one)
+        ;    !output! (id: =id1)
+        ;    !output! (time: =time)
+        
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position second   
+    =imaginal>
+    +retrieval>
+        isa	nback-state
+        id	=id1
+        ;position	1
+        ;time	=time
+        
+)
+
+(p update-1back
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position second
+        one	=one
+        time1	=time1
+    =retrieval>
+        isa	nback-state
+        id	=id
+        slimit	=slimit
+        time	=time
+    =imaginal>
+        1back	=id1
+==>
+    !output! (Retrieved chunk:)
+    !output! (slimit: =slimit)
+    !output! (id: =id)
+    !output! (time: =time)
+    !output! (--------------------------------------)
+    !output! (Target chunk:)
+    !output! (slimit: =one)
+    !output! (id: =id1)
+    !output! (time:	=time1)  
+        
+    =goal>
+        isa	nback
+        status	rehearse-1
+        1back	=id
+        position third
+        one	=slimit
+    =imaginal>
+)
+
+(p rehearse-2back
+    =goal>
+        isa	nback
+        status	rehearse-1
+        position third
+        two	=two
+        time2	=time
+    =imaginal>
+        isa	nback-list
+        2back	=id2
+    ?retrieval>
+        state	free
+==>
+        ; !output! (Target chunk (2back):)
+        ;    !output! (slimit:	=two)
+        ;    !output! (id: =id2)
+        ;    !output! (time: =time)     
+        
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position third 
+    =imaginal>
+    +retrieval>
+        isa	nback-state
+        id	=id2
+        ;position	2
+        ;time	=time  
+)
+
+(p update-2back
+    =goal>
+        isa	nback
+        status	rehearse-2
+        position third
+        two	=two
+        time2	=time2
+    =retrieval>
+        isa	nback-state
+        id	=id
+        slimit	=slimit
+        time	=time
+    =imaginal>
+        2back	=id2
+==>
+    !output! (Retrieved chunk:)
+    !output! (slimit: =slimit)
+    !output! (id: =id)
+    !output! (time: =time)
+    !output! (--------------------------------------)
+    !output! (Target chunk:)
+    !output! (slimit: =two)
+    !output! (id: =id2)
+    !output! (time:	=time2)  
+        
+    =goal>
+        isa	nback
+        status	new-list
+        2back	=id
+        position first
+        two	=slimit
+    =imaginal>
+)
+
+(p create-new-list
+    =goal>
+        isa	nback
+        status	new-list
+        0back	=id0
+        1back	=id1
+        2back	=id2     
+        zero	=zero
+        one	=one
+        two	=two
+        time0	=time0
+        time1	=time1
+        time2	=time2
+        
+        true0back	=t0
+        true1back	=t1
+        true2back	=t2
+        
+    =imaginal>
+        nbackspeed	=nbackspeed
+    =temporal>
+        ticks	=time
+==>
+        ;!bind! =cid (get-chunk-id)
+    !bind! =list_id (get-list-id)
+        
+    !output! (------------------------------------------------)
+    !output! (0back speed limit: =t0)
+    !output! (1back speed limit: =t1)
+    !output! (2back speed limit: =t2)
+    !output! (Imagined speed limit: =nbackspeed)
+    !output! (------------------------------------------------)
+    !output! (New list)
+    !output! (0back:)
+    !output! (slimit: =zero , id: =id0 , time: =time0) 
+    !output! (1back:)
+    !output! (slimit: =one , id: =id1 , time: =time1) 
+    !output! (2back)        
+    !output! (slimit: =two , id: =id2 , time: =time2) 
+    !output! (------------------------------------------------)
+        
+    =goal>
+        isa	nback
+        status	store-list
+        position first
+        list	=list_id
+        ;time	=time
+    =imaginal>
+    +imaginal>
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+        list-id	=list_id      
+        time	=time
+        nbackspeed	=nbackspeed
+)         
+
+
+(p store-new-list
+    =goal>
+        isa	nback
+        status	store-list
+    =imaginal>
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+        list-id	=lid      
+        time	=time
+        nbackspeed	=nbackspeed
+==>
+    =goal>
+        isa	nback
+        status	rehearse-1
+    -imaginal>
+    +imaginal>
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+        list-id	=lid      
+        time	=time
+        nbackspeed	=nbackspeed
+)
+
+
+(p enforce-list
+    =goal>
+        isa	nback
+        status	new-list
+        0back	=id0
+        1back	=id1
+        2back	=id2     
+        zero	=zero
+        one	=one
+        two	=two
+        time0	=time0
+        time1	=time1
+        time2	=time2
+        list	=lid
+        
+        id-on-list-0	=id0
+        id-on-list-1	=id1
+        id-on-list-2	=id2  
+        
+        true0back	=t0
+        true1back	=t1
+        true2back	=t2
+        
+    =imaginal>
+        nbackspeed	=nbackspeed
+    =temporal>
+        ticks	=time
+==>
+        ;!bind! =cid (get-chunk-id)
+        ; !bind! =list_id (get-list-id)
+        
+    !output! (------------------------------------------------)
+    !output! (0back speed limit: =t0)
+    !output! (1back speed limit: =t1)
+    !output! (2back speed limit: =t2)
+    !output! (Imagined speed limit: =nbackspeed)
+    !output! (------------------------------------------------)
+    !output! (New list)
+    !output! (0back:)
+    !output! (slimit: =zero , id: =id0 , time: =time0) 
+    !output! (1back:)
+    !output! (slimit: =one , id: =id1 , time: =time1) 
+    !output! (2back)        
+    !output! (slimit: =two , id: =id2 , time: =time2) 
+    !output! (------------------------------------------------)
+        
+    =goal>
+        isa	nback
+        status	rehearse-1
+        position first
+        list	=lid
+        ;time	=time
+        ;=imaginal>
+    +imaginal>
+        isa	nback-list
+        0back	=id0
+        1back	=id1
+        2back	=id2
+        list-id	=lid     
+        time	=time
+        nbackspeed	=nbackspeed
+)         
+
+
+
+
+(p nback-interrupt-rehearsing-notice-sign
+    =goal>
+        isa nback
+        - status notice  
+    =visual-location>
+        isa visual-location
+        kind speedsign
+        :attended t
+==>
+    =goal>
+        status read-nback   
+        rehearsal f
+    -visual-location>
+    +visual>
+        isa move-attention
+        screen-pos =visual-location
+)
+
+(p mind-wandering-1
+    =goal>
+        isa	nback
+        status	rehearse-1
+        position first
+==>
+    =goal>
+        isa	nback
+        status	mindwandering
+)
+
+(p mind-wandering-2
+    =goal>
+        isa	nback
+        status	mindwandering
+        position first
+==>
+    =goal>
+        isa	nback
+        status	rehearse-1
+        position first
+)
+
+(spp enforce-list :u 100)
+(spp nback-interrupt-rehearsing-notice-sign :u 100)
+(spp encode-first* :u 10)
+(spp encode-second* :u 5)
+(spp encode-third* :u 1)
+(spp rehearse-0back :u 0.7)
+;(spp rehearse-1back :u 0.7)
+;(spp rehearse-2back :u 0.7)
+(spp mind-wandering-1 :u 0)
+
+
+(set-similarities    
+    (1 1 0) ( 1 2 -0.2 ) ( 1 3 -0.6 ) ( 1 4 -0.8 ) ( 1 5 -1 ) ( 2 3 -0.2 ) ( 2 4 -0.6 ) ( 2 5 -0.8 ) ( 2 6 -1 ) ( 3 4 -0.2 ) ( 3 5 -0.6 ) ( 3 6 -0.8 ) ( 3 7 -1 ) ( 4 5 -0.2 ) ( 4 6 -0.6 ) ( 4 7 -0.8 ) ( 4 8 -1 ) ( 5 6 -0.2 ) ( 5 7 -0.6 ) ( 5 8 -0.8 ) ( 5 9 -1 ) ( 6 7 -0.2 ) ( 6 8 -0.6 ) ( 6 9 -0.8 ) ( 6 10 -1 ) ( 7 8 -0.2 ) ( 7 9 -0.6 ) ( 7 10 -0.8 ) ( 7 11 -1 ) ( 8 9 -0.2 ) ( 8 10 -0.6 ) ( 8 11 -0.8 ) ( 8 12 -1 ) ( 9 10 -0.2 ) ( 9 11 -0.6 ) ( 9 12 -0.8 ) ( 9 13 -1 ) ( 10 11 -0.2 ) ( 10 12 -0.6 ) ( 10 13 -0.8 ) ( 10 14 -1 ) ( 11 12 -0.2 ) ( 11 13 -0.6 ) ( 11 14 -0.8 ) ( 11 15 -1 ) ( 12 13 -0.2 ) ( 12 14 -0.6 ) ( 12 15 -0.8 ) ( 12 16 -1 ) ( 13 14 -0.2 ) ( 13 15 -0.6 ) ( 13 16 -0.8 ) ( 13 17 -1 ) ( 14 15 -0.2 ) ( 14 16 -0.6 ) ( 14 17 -0.8 ) ( 14 18 -1 ) ( 15 16 -0.2 ) ( 15 17 -0.6 ) ( 15 18 -0.8 ) ( 15 19 -1 ) ( 16 17 -0.2 ) ( 16 18 -0.6 ) ( 16 19 -0.8 ) ( 16 20 -1 ) ( 17 18 -0.2 ) ( 17 19 -0.6 ) ( 17 20 -0.8 ) ( 17 21 -1 ) ( 18 19 -0.2 ) ( 18 20 -0.6 ) ( 18 21 -0.8 ) ( 18 22 -1 ) ( 19 20 -0.2 ) ( 19 21 -0.6 ) ( 19 22 -0.8 ) ( 19 23 -1 ) ( 20 21 -0.2 ) ( 20 22 -0.6 ) ( 20 23 -0.8 ) ( 20 24 -1 ) ( 21 22 -0.2 ) ( 21 23 -0.6 ) ( 21 24 -0.8 ) ( 21 25 -1 ) ( 22 23 -0.2 ) ( 22 24 -0.6 ) ( 22 25 -0.8 ) ( 22 26 -1 ) ( 23 24 -0.2 ) ( 23 25 -0.6 ) ( 23 26 -0.8 ) ( 23 27 -1 ) ( 24 25 -0.2 ) ( 24 26 -0.6 ) ( 24 27 -0.8 ) ( 24 28 -1 ) ( 25 26 -0.2 ) ( 25 27 -0.6 ) ( 25 28 -0.8 ) ( 25 29 -1 ) ( 26 27 -0.2 ) ( 26 28 -0.6 ) ( 26 29 -0.8 ) ( 26 30 -1 ) ( 27 28 -0.2 ) ( 27 29 -0.6 ) ( 27 30 -0.8 ) ( 27 31 -1 ) ( 28 29 -0.2 ) ( 28 30 -0.6 ) ( 28 31 -0.8 ) ( 28 32 -1 ) ( 29 30 -0.2 ) ( 29 31 -0.6 ) ( 29 32 -0.8 ) ( 29 33 -1 ) ( 30 31 -0.2 ) ( 30 32 -0.6 ) ( 30 33 -0.8 ) ( 30 34 -1 ) ( 31 32 -0.2 ) ( 31 33 -0.6 ) ( 31 34 -0.8 ) ( 31 35 -1 ) ( 32 33 -0.2 ) ( 32 34 -0.6 ) ( 32 35 -0.8 ) ( 32 36 -1 ) ( 33 34 -0.2 ) ( 33 35 -0.6 ) ( 33 36 -0.8 ) ( 33 37 -1 ) ( 34 35 -0.2 ) ( 34 36 -0.6 ) ( 34 37 -0.8 ) ( 34 38 -1 ) ( 35 36 -0.2 ) ( 35 37 -0.6 ) ( 35 38 -0.8 ) ( 35 39 -1 ) ( 36 37 -0.2 ) ( 36 38 -0.6 ) ( 36 39 -0.8 ) ( 36 40 -1 ) ( 37 38 -0.2 ) ( 37 39 -0.6 ) ( 37 40 -0.8 ) ( 37 41 -1 ) ( 38 39 -0.2 ) ( 38 40 -0.6 ) ( 38 41 -0.8 ) ( 38 42 -1 ) ( 39 40 -0.2 ) ( 39 41 -0.6 ) ( 39 42 -0.8 ) ( 39 43 -1 ) ( 40 41 -0.2 ) ( 40 42 -0.6 ) ( 40 43 -0.8 ) ( 40 44 -1 ) ( 41 42 -0.2 ) ( 41 43 -0.6 ) ( 41 44 -0.8 ) ( 41 45 -1 ) ( 42 43 -0.2 ) ( 42 44 -0.6 ) ( 42 45 -0.8 ) ( 42 46 -1 ) ( 43 44 -0.2 ) ( 43 45 -0.6 ) ( 43 46 -0.8 ) ( 43 47 -1 ) ( 44 45 -0.2 ) ( 44 46 -0.6 ) ( 44 47 -0.8 ) ( 44 48 -1 ) ( 45 46 -0.2 ) ( 45 47 -0.6 ) ( 45 48 -0.8 ) ( 45 49 -1 ) ( 46 47 -0.2 ) ( 46 48 -0.6 ) ( 46 49 -0.8 ) ( 46 50 -1 ) ( 47 48 -0.2 ) ( 47 49 -0.6 ) ( 47 50 -0.8 ) ( 47 51 -1 ) ( 48 49 -0.2 ) ( 48 50 -0.6 ) ( 48 51 -0.8 ) ( 48 52 -1 ) ( 49 50 -0.2 ) ( 49 51 -0.6 ) ( 49 52 -0.8 ) ( 49 53 -1 ) )
+(goal-focus goal1)
+(goal-focus goal2)
+
+
+;------------------------------------------------------------------------------------------------
+
+
+    ;(p build-list-1*
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-1
+    ;num	=num
+    ;0back nil
+    ;1back	nil
+    ;=imaginal>
+    ;isa	nback-state
+    ;position 0back
+    ;id	=id0
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-2
+    ;num	=num
+    ;0back	=id0
+    ;+retrieval>
+    ;isa	nback-state
+    
+    ;position 1back
+    ; =imaginal>
+    ;isa nback-state
+    ;num 	=num  
+    ;)
+
+    ;(p build-list-2*
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-2
+    ;num	=num
+    ;0back	=id0
+    ;=retrieval>
+    ;isa	nback-state
+    ;position 1back
+    ;id	=id1
+    ;slimit	=slimit
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-3
+    ;num	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;=imaginal>
+    ;isa nback-state
+    ;num 	=num 
+    ;)
+
+    ;(p build-list-3*
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-3
+    ;num	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back nil
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-4
+    ;num	=num
+    ;+retrieval>
+    ;isa	nback-state
+    ;position 2back
+    ;=imaginal>
+    ;isa nback-state
+    ;num 	=num 
+    ;)
+
+    ;(p build-list-4*
+    ;=goal>
+    ;isa	nback
+    ;status	build-list-4
+    ;num	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back nil
+    ;=imaginal>
+    ;    isa nback-state
+    ; num 	=num 
+    ;slimit 	=slimit
+    ;nbackspeed =nbackspeed
+    ;=retrieval>
+    ;isa	nback-state
+    ;position 2back
+    ;id	=id2
+    
+    ;  ==>
+    ;!bind! =cid (get-chunk-id)
+    ;!bind! =num (get-num-sign)
+    
+    ;  =goal>
+    ;isa	nback
+    ;status read-nback
+    ;num 	=num
+    ;list 	=cid
+    ;0back	nil
+    ;1back	nil
+    ;2back	nil
+    ;+imaginal>
+    ;isa	nback-list
+    ;id	=cid
+    ;num	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	=id2
+    ; slimit	=slimit
+    ;nbackspeed =nbackspeed
+    ;)
+
+
+
+
+    ;(p update-list-3
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;position second
+    ;target	=target
+    ;0back	=id0   
+    ;1back	=id1
+    ;2back	nil
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;position second
+    ;0back	=id0
+    ;1back	=id1
+    ;target	=target
+    ;+retrieval>
+    ;isa	nback-state
+    ;id	=target
+    ;)
+
+    ;(p update-list-4
+    ;=goal>
+    ;isa	nback
+    ;    status	update
+    ;num 	=num
+    ;position second
+    ;0back	=id0
+    ;1back	nil
+    ;2back	nil
+    ;=retrieval>
+    ;isa	nback-list
+    ;id	=id1
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;position third
+    ;0back	=id0
+    ;1back	=id1
+    ;)
+
+    ;(p update-list-5
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;position third
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	nil
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;position third
+    ;0back	=id0
+    ;1back	=id1
+    ;+retrieval>
+    ;isa	nback-list
+    ;; num	=num
+    ;)
+
+    ;(p update-list-6
+    ;    =goal>
+    ;    isa	nback
+    ;    status	update
+    ;    num 	=num
+    ;    position third
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	nil
+    ;=retrieval>
+    ;    isa	nback-list
+    ;num	=num
+    ;1back	=target
+    ;==>
+    ;=goal>
+    ;    isa	nback
+    ;status	update
+    ;num 	=num
+    ;position 
+    ;0back	=id0
+    ;1back	=id1
+    ;target	=target
+    ;)
+
+    ;(p update-list-7
+    ;=goal>
+    ;    isa	nback
+    ;status	update
+    ;num 	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;target	=target
+    ;2back	nil
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;    isa	nback
+    ;status	update
+    ;num 	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;target	=target
+    ;+retrieval>
+    ;isa	nback-state
+    ;id	=target
+    ;)
+
+    ;(p update-list-8
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	nil
+    ;target	=target
+    ;=retrieval>
+    ;isa	nback-state
+    ;id	=id2
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	=id2
+    ;)
+
+    ;(p update-list-9
+    ;=goal>
+    ;isa	nback
+    ;status	update
+    ;num 	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	=id2
+    ;=imaginal>
+    ;isa nback-state
+    ;num 	=num 
+    ;slimit 	=slimit
+    ;nbackspeed =nbackspeed
+    ;==>
+    ;!bind! =cid (get-chunk-id)
+    ;=goal>
+    ;isa	nback
+    ;status	retrieve-list
+    ;num 	=num
+    ;0back	nil
+    ;1back	nil
+    ;2back	nil
+    ;+imaginal>
+    ;isa	nback-list
+    ;id	=cid
+    ;num	=num
+    ;0back	=id0
+    ;1back	=id1
+    ;2back	=id2
+    ;slimit	=slimit
+    ;nbackspeed =nbackspeed
+    ;)
+
+
+    ;(p retrieve-list
+    ;=goal>
+    ;isa	nback
+    ;status	retrieve-list
+    ;num	=num
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	recall
+    ;num	=num
+    ;+retrieval>
+    ;isa	nback-list
+    ;num	=num
+    ;)
+
+;-------------------------------------------------------------------------
+    ;(p recall-from-list-0back
+    ;=goal>
+    ;isa	nback
+    ;status	recall
+    ;num	=num
+    ;position first
+    ;=retrieval>
+    ;isa	nback-list
+    ;0back	=id-0
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-0
+    ;position first
+    ;)
+
+    ;(p rehearse-0back-1
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-0
+    ;position first
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position first
+    ;+retrieval>
+    ;isa	nback-state
+    ;id	=id-0
+    ;)
+
+    ;(p rehearse-0back-2
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position first
+    ;=retrieval>
+    ;isa	nback-state
+    ;==>
+    ;=goal>
+    ;sa	nback
+    ;status	retrieve-list
+    ;position second
+    ;)
+
+;-------------------------------------------------------------------------------
+
+    ;(p recall-from-list-1back
+    ;=goal>
+    ;isa	nback
+    ;status	recall
+    ;num	=num
+    ;position second
+    ;=retrieval>
+    ;isa	nback-list
+    ;1back	=id-1
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-1
+    ;position second
+    ;)
+
+    ;(p rehearse-1back-1
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-1
+    ;position second
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position second
+    ;+retrieval>
+    ;isa	nback-state
+    ;id	=id-1
+    ;)
+
+    ;(p rehearse-1back-2
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position second
+    ;=retrieval>
+    ;    isa	nback-state
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	retrieve-list
+    ;position third
+    ;)
+
+;--------------------------------------------------------------------------------------------
+
+
+    ;(p recall-from-list-2back
+    ;=goal>
+    ;isa	nback
+    ;status	recall
+    ;num	=num
+    ;position third
+    ;=retrieval>
+    ;isa	nback-list
+    ;2back	=id-2
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-2
+    ;position third
+    ;)
+
+    ;(p rehearse-2back-1
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-1
+    ;num	=num
+    ;target	=id-2
+    ;position third
+    ;?retrieval>
+    ;state	free
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position third
+    ;+retrieval>
+    ;isa	nback-state
+    ;id	=id-2
+    ;)
+
+    ;(p rehearse-2back-2
+    ;=goal>
+    ;isa	nback
+    ;status	rehearse-2
+    ;num	=num
+    ;position third
+    ;=retrieval>
+    ;isa	nback-state
+    ;==>
+    ;=goal>
+    ;isa	nback
+    ;status	retrieve-list
+    ;position first
+    ;)
+
+
